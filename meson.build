@@ -1,0 +1,4 @@
+project('lisiblepng', 'c', default_options: ['c_std=c18', 'warning_level=3'])
+
+subdir('lisiblepng')
+subdir('lisiblepng-bin')
