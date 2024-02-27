@@ -76,6 +76,9 @@ void DeflateDecompressor_init(DeflateDecompressor *ctx, FILE *stream) {
   ASSERT(ctx != NULL);
   ASSERT(stream != NULL);
   ctx->stream = stream;
+#ifdef LISIBLE_PNG_COMPUTE_CRC
+  ctx->computed_crc = 0xFFFFFFFFu;
+#endif // LISIBLE_PNG_COMPUTE_CRC
 }
 
 void ParsingContext_crc_reset(DeflateDecompressor *ctx) {

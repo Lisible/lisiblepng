@@ -30,8 +30,7 @@ void Bitstream_skip(Bitstream *bitstream, size_t bit_count) {
 uint16_t Bitstream_next_bits(Bitstream *bitstream, int bit_count) {
   ASSERT(bitstream != NULL);
   ASSERT(bit_count <= 16);
-  ASSERT(bitstream->current_byte_index +
-             (bitstream->current_bit_offset + bit_count) % 8 <=
+  ASSERT((bitstream->current_bit_offset + (size_t)bit_count) / 8 <=
          bitstream->data_size);
 
   int bit_to_read = bit_count;
