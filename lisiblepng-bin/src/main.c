@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define LOG0(msg) fprintf(stderr, msg)
-#define LOGN(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
+#define LOG0(msg) fprintf(stderr, msg "\n")
+#define LOGN(fmt, ...) fprintf(stderr, fmt "\n", __VA_ARGS__)
 
 int main(int argc, char **argv) {
   if (argc != 2) {
