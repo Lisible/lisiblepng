@@ -419,7 +419,7 @@ void apply_reconstruction_functions(Png *image,
   }
 }
 
-Png *lis_Png_parse(FILE *stream) {
+Png *lis_Png_decode(FILE *stream) {
   Png *png = malloc(sizeof(Png));
   DeflateDecompressor ctx;
 

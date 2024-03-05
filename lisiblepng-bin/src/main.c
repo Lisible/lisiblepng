@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     goto err;
   }
 
-  Png *png = lis_Png_parse(png_file);
+  Png *png = lis_Png_decode(png_file);
   lis_Png_dump_ppm(png);
   lis_Png_destroy(png);
 

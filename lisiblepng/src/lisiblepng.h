@@ -12,7 +12,7 @@ typedef struct Png Png;
 /// @returns The parsed PNG as a Png struct pointer or NULL if an error occured.
 /// The returned PNG is owned by the caller and must be destroyed with
 /// Png_destroy.
-Png *lis_Png_parse(FILE *stream);
+Png *lis_Png_decode(FILE *stream);
 /// Outputs the provided Png struct as a PPM image to stdout
 ///
 /// @param png The png
