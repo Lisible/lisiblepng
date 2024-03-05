@@ -61,41 +61,52 @@ const uint32_t CRC32_TABLE[256] = {
     0x54DE5729, 0x23D967BF, 0xB3667A2E, 0xC4614AB8, 0x5D681B02, 0x2A6F2B94,
     0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D};
 
-typedef enum {
-  ColourType_Greyscale = 0,
-  ColourType_Truecolour = 2,
-  ColourType_IndexedColour = 3,
-  ColourType_GreyscaleWithAlpha = 4,
-  ColourType_TruecolourWithAlpha = 6,
-  ColourType_Unknown
-} ColourType;
+struct LisPng {
+  uint8_t *data;
+  size_t width;
+  size_t height;
+  LisPngColourType colour_type;
+  uint8_t bits_per_sample;
+};
 
-uint8_t ColourType_sample_count(const ColourType colour_type) {
+LisPngColourType LisPng_colour_type(const LisPng *png) {
+  ASSERT(png != NULL);
+  return png->colour_type;
+}
+uint8_t LisPng_bits_per_sample(const LisPng *png) {
+  ASSERT(png != NULL);
+  return png->bits_per_sample;
+}
+uint8_t *LisPng_data_ptr(const LisPng *png) {
+  ASSERT(png != NULL);
+  return png->data;
+}
+uint32_t LisPng_width(const LisPng *png) {
+  ASSERT(png != NULL);
+  return png->width;
+}
+uint32_t LisPng_height(const LisPng *png) {
+  ASSERT(png != NULL);
+  return png->height;
+}
+
+uint8_t LisPngColourType_sample_count(const LisPngColourType colour_type) {
   switch (colour_type) {
-  case ColourType_Greyscale:
+  case LisPngColourType_Greyscale:
     return 1;
-  case ColourType_Truecolour:
+  case LisPngColourType_Truecolour:
     return 3;
-  case ColourType_IndexedColour:
+  case LisPngColourType_IndexedColour:
     return 1;
-  case ColourType_GreyscaleWithAlpha:
+  case LisPngColourType_GreyscaleWithAlpha:
     return 2;
-  case ColourType_TruecolourWithAlpha:
+  case LisPngColourType_TruecolourWithAlpha:
     return 4;
   default:
     LPNG_LOG_ERR0("Unknown colour type");
     abort();
   }
 }
-
-struct Png {
-  uint8_t *data;
-  size_t width;
-  size_t height;
-  ColourType colour_type;
-  uint8_t bits_per_sample;
-};
-
 typedef struct {
   FILE *stream;
 #ifdef LISIBLE_PNG_COMPUTE_CRC
@@ -390,11 +401,11 @@ void apply_reconstruction_functions_to_scanline(
   }
 }
 
-void apply_reconstruction_functions(Png *image,
+void apply_reconstruction_functions(LisPng *image,
                                     const uint8_t *decompressed_data_buffer) {
   ASSERT(image != NULL);
   ASSERT(decompressed_data_buffer != NULL);
-  size_t sample_count = ColourType_sample_count(image->colour_type);
+  size_t sample_count = LisPngColourType_sample_count(image->colour_type);
   size_t bits_per_pixel = (image->bits_per_sample * sample_count);
   size_t bytes_per_pixel = bits_per_pixel / 8;
   if (image->bits_per_sample < 8) {
@@ -419,8 +430,8 @@ void apply_reconstruction_functions(Png *image,
   }
 }
 
-Png *lis_Png_decode(FILE *stream) {
-  Png *png = malloc(sizeof(Png));
+LisPng *LisPng_decode(FILE *stream) {
+  LisPng *png = malloc(sizeof(LisPng));
   DeflateDecompressor ctx;
 
   DeflateDecompressor_init(&ctx, stream);
@@ -511,16 +522,16 @@ err:
 }
 
 #undef PARSE_FIELD
-void lis_Png_destroy(Png *png) {
+void LisPng_destroy(LisPng *png) {
   free(png->data);
   free(png);
 }
-void lis_Png_dump_ppm(const Png *png) {
+void LisPng_dump_ppm(const LisPng *png) {
   ASSERT(png != NULL);
   printf("P3\n");
   printf("%zu %zu\n", png->width, png->height);
   printf("%d\n", (1 << png->bits_per_sample) - 1);
-  size_t sample_count = ColourType_sample_count(png->colour_type);
+  size_t sample_count = LisPngColourType_sample_count(png->colour_type);
   size_t bits_per_pixel = png->bits_per_sample * sample_count;
   size_t bytes_per_pixel = bits_per_pixel / 8;
   if (png->bits_per_sample < 8) {
@@ -529,7 +540,7 @@ void lis_Png_dump_ppm(const Png *png) {
   for (size_t pixel_index = 0; pixel_index < png->height * png->width;
        pixel_index++) {
     size_t pixel_base = pixel_index * bytes_per_pixel;
-    if (png->colour_type == ColourType_Greyscale) {
+    if (png->colour_type == LisPngColourType_Greyscale) {
       if (bits_per_pixel == 16) {
         uint16_t grey =
             (png->data[pixel_base] << 8) | png->data[pixel_base + 1];
@@ -543,7 +554,7 @@ void lis_Png_dump_ppm(const Png *png) {
                        ((1 << bits_per_pixel) - 1);
         printf("%u %u %u\n", grey, grey, grey);
       }
-    } else if (png->colour_type == ColourType_Truecolour) {
+    } else if (png->colour_type == LisPngColourType_Truecolour) {
       if (png->bits_per_sample == 16) {
         uint16_t r = (png->data[pixel_base] << 8) | png->data[pixel_base + 1];
         uint16_t g =

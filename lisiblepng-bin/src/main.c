@@ -20,9 +20,9 @@ int main(int argc, char **argv) {
     goto err;
   }
 
-  Png *png = lis_Png_decode(png_file);
-  lis_Png_dump_ppm(png);
-  lis_Png_destroy(png);
+  LisPng *png = LisPng_decode(png_file);
+  LisPng_dump_ppm(png);
+  LisPng_destroy(png);
 
   if (fclose(png_file) != 0) {
     const char *error_message = strerror(errno);
