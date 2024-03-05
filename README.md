@@ -19,3 +19,11 @@ Alpha channels, interlacing, paletted images and non-mandatory chunks are not su
 meson setup <builddir>
 meson compile -C <builddir>
 ```
+
+## CLI
+
+``lisiblepng-bin`` is a program that decodes a PNG and outputs it as a PPM image to stdout.
+Usage is as follow:
+```bash
+lisiblepng <image_path>
+```
