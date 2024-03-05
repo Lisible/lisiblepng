@@ -6,8 +6,8 @@
 #define ASSERT(predicate)                                                      \
   do {                                                                         \
     if (!(predicate)) {                                                        \
-      LOGN("Assertion failed in %s:%d:\n\t%s", __FILE__, __LINE__,             \
-           #predicate);                                                        \
+      LPNG_LOG_ERR("Assertion failed in %s:%d:\n\t%s", __FILE__, __LINE__,     \
+                   #predicate);                                                \
       exit(1);                                                                 \
     }                                                                          \
   } while (0)

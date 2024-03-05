@@ -1,7 +1,10 @@
 #include <errno.h>
 #include <lisiblepng.h>
-#include <log.h>
+#include <stdio.h>
 #include <string.h>
+
+#define LOG0(msg) fprintf(stderr, msg)
+#define LOGN(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 
 int main(int argc, char **argv) {
   if (argc != 2) {
