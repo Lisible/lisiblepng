@@ -511,7 +511,10 @@ err:
 }
 
 #undef PARSE_FIELD
-void lis_Png_destroy(Png *png) { free(png); }
+void lis_Png_destroy(Png *png) {
+  free(png->data);
+  free(png);
+}
 void lis_Png_dump_ppm(const Png *png) {
   ASSERT(png != NULL);
   printf("P3\n");
