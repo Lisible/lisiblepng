@@ -43,7 +43,7 @@ typedef struct {
 #define DEFLATE_OUTPUT_BUFFER_INITIAL_CAPACITY (1024 * 256)
 
 typedef struct {
-  char *buffer;
+  uint8_t *buffer;
   size_t len;
   size_t cap;
 } OutputBuffer;
@@ -236,7 +236,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
       abort();
     } else {
       if (b_type == DeflateBlockType_FixedHuffman) {
-        LPNG_LOG_ERR0("Static huffman table");
+        LPNG_LOG_DBG0("Static huffman table");
         static bool are_tables_blank = true;
         static LengthLiteralTable length_literal_table = {0};
         static DistanceTable distance_table = {0};
@@ -244,7 +244,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
         uint16_t lenlit_codelengths[FIXED_LENGTH_LITERAL_CODE_COUNT];
 
         if (are_tables_blank) {
-          LPNG_LOG_ERR0("Computing static huffman table");
+          LPNG_LOG_DBG0("Computing static huffman table");
           for (int symbol = 0; symbol < 144; symbol++) {
             lenlit_codelengths[symbol] = 8;
           }
@@ -339,9 +339,9 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
   return true;
 }
 
-char *zlib_decompress(const uint8_t *compressed_data_buffer,
-                      const size_t compressed_data_length,
-                      size_t *output_length) {
+uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
+                         const size_t compressed_data_length,
+                         size_t *output_length) {
   ASSERT(compressed_data_buffer != NULL);
 
   Bitstream bitstream;

@@ -89,7 +89,7 @@ uint8_t ColourType_sample_count(const ColourType colour_type) {
 }
 
 struct Png {
-  char *data;
+  uint8_t *data;
   size_t width;
   size_t height;
   ColourType colour_type;
@@ -358,8 +358,8 @@ static const ReconstructionFn reconstruction_functions[] = {
     paeth_reconstruction_function};
 
 void apply_reconstruction_functions_to_scanline(
-    char *output_scanline, const char *input_scanline,
-    const char *previous_output_scanline, size_t filter_type,
+    uint8_t *output_scanline, const uint8_t *input_scanline,
+    const uint8_t *previous_output_scanline, size_t filter_type,
     size_t scanline_size, size_t bytes_per_pixel) {
   ASSERT(output_scanline != NULL);
   ASSERT(input_scanline != NULL);
@@ -367,31 +367,31 @@ void apply_reconstruction_functions_to_scanline(
          sizeof(reconstruction_functions) / sizeof(ReconstructionFn));
 
   for (size_t i = 0; i < scanline_size / bytes_per_pixel; i++) {
-    for (size_t p = 0; p < bytes_per_pixel; p++) {
+    for (size_t byte = 0; byte < bytes_per_pixel; byte++) {
+      size_t pixel_base = i * bytes_per_pixel;
       uint8_t a = 0;
       if (i > 0) {
-        a = output_scanline[i * bytes_per_pixel - bytes_per_pixel + p];
+        a = output_scanline[pixel_base - bytes_per_pixel + byte];
       }
 
       uint8_t b = 0;
       uint8_t c = 0;
       if (previous_output_scanline != NULL) {
-        b = previous_output_scanline[i * bytes_per_pixel + p];
+        b = previous_output_scanline[pixel_base + byte];
         if (i > 0) {
-          c = previous_output_scanline[i * bytes_per_pixel - bytes_per_pixel +
-                                       p];
+          c = previous_output_scanline[pixel_base - bytes_per_pixel + byte];
         }
       }
 
-      uint8_t x = input_scanline[i * bytes_per_pixel + p];
-      output_scanline[i * bytes_per_pixel + p] =
+      uint8_t x = input_scanline[pixel_base + byte];
+      output_scanline[pixel_base + byte] =
           reconstruction_functions[filter_type](a, b, c, x);
     }
   }
 }
 
 void apply_reconstruction_functions(Png *image,
-                                    const char *decompressed_data_buffer) {
+                                    const uint8_t *decompressed_data_buffer) {
   ASSERT(image != NULL);
   ASSERT(decompressed_data_buffer != NULL);
   size_t sample_count = ColourType_sample_count(image->colour_type);
@@ -406,7 +406,7 @@ void apply_reconstruction_functions(Png *image,
     size_t output_scanline_start = scanline_size * scanline;
     size_t input_scanline_start = (scanline_size + 1) * scanline;
     uint8_t filter_type = decompressed_data_buffer[input_scanline_start];
-    const char *previous_output_scanline = NULL;
+    const uint8_t *previous_output_scanline = NULL;
     if (scanline > 0) {
       size_t previous_output_scanline_start = scanline_size * (scanline - 1);
       previous_output_scanline = &image->data[previous_output_scanline_start];
@@ -494,7 +494,7 @@ Png *lis_Png_decode(FILE *stream) {
   png->colour_type = header.colour_type;
   png->bits_per_sample = header.bit_depth;
   size_t output_length;
-  char *output_buffer =
+  uint8_t *output_buffer =
       zlib_decompress(image_data.data, image_data.length, &output_length);
   png->data = output_buffer;
 
@@ -528,42 +528,33 @@ void lis_Png_dump_ppm(const Png *png) {
   }
   for (size_t pixel_index = 0; pixel_index < png->height * png->width;
        pixel_index++) {
-
+    size_t pixel_base = pixel_index * bytes_per_pixel;
     if (png->colour_type == ColourType_Greyscale) {
       if (bits_per_pixel == 16) {
-        uint8_t hi = png->data[pixel_index * bytes_per_pixel];
-        uint8_t lo = png->data[pixel_index * bytes_per_pixel + 1];
-        uint16_t grey = ((hi & 0xFFu) << 8) | (lo & 0xFFu);
+        uint16_t grey =
+            (png->data[pixel_base] << 8) | png->data[pixel_base + 1];
         printf("%u %u %u\n", grey, grey, grey);
       } else {
         size_t absolute_bit_offset = pixel_index * bits_per_pixel;
         size_t byte_offset = absolute_bit_offset / 8;
         size_t relative_bit_offset = absolute_bit_offset % 8;
-        unsigned char grey =
-            (png->data[byte_offset] >>
-             (7 - relative_bit_offset - (bits_per_pixel - 1))) &
-            ((1 << bits_per_pixel) - 1);
+        uint8_t grey = (png->data[byte_offset] >>
+                        (7 - relative_bit_offset - (bits_per_pixel - 1))) &
+                       ((1 << bits_per_pixel) - 1);
         printf("%u %u %u\n", grey, grey, grey);
       }
     } else if (png->colour_type == ColourType_Truecolour) {
       if (png->bits_per_sample == 16) {
-        uint8_t hi_r = png->data[pixel_index * bytes_per_pixel];
-        uint8_t lo_r = png->data[pixel_index * bytes_per_pixel + 1];
-        uint16_t r = ((hi_r & 0xFFu) << 8) | (lo_r & 0xFFu);
-
-        uint8_t hi_g = png->data[pixel_index * bytes_per_pixel + 2];
-        uint8_t lo_g = png->data[pixel_index * bytes_per_pixel + 3];
-        uint16_t g = ((hi_g & 0xFFu) << 8) | (lo_g & 0xFFu);
-
-        uint8_t hi_b = png->data[pixel_index * bytes_per_pixel + 4];
-        uint8_t lo_b = png->data[pixel_index * bytes_per_pixel + 5];
-        uint16_t b = ((hi_b & 0xFFu) << 8) | (lo_b & 0xFFu);
-
+        uint16_t r = (png->data[pixel_base] << 8) | png->data[pixel_base + 1];
+        uint16_t g =
+            (png->data[pixel_base + 2] << 8) | png->data[pixel_base + 3];
+        uint16_t b =
+            (png->data[pixel_base + 4] << 8) | png->data[pixel_base + 5];
         printf("%u %u %u\n", r, g, b);
       } else {
-        uint8_t r = png->data[pixel_index * bytes_per_pixel];
-        uint8_t g = png->data[pixel_index * bytes_per_pixel + 1];
-        uint8_t b = png->data[pixel_index * bytes_per_pixel + 2];
+        uint8_t r = png->data[pixel_base];
+        uint8_t g = png->data[pixel_base + 1];
+        uint8_t b = png->data[pixel_base + 2];
         printf("%u %u %u\n", r, g, b);
       }
     } else {
