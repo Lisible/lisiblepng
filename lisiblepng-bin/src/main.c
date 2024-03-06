@@ -17,20 +17,23 @@ int main(int argc, char **argv) {
   if (!png_file) {
     const char *error_message = strerror(errno);
     LOGN("Couldn't open PNG file: %s", error_message);
-    goto err;
+    return 1;
   }
 
   LisPng *png = LisPng_decode(png_file);
+  if (!png) {
+    LOG0("Couldn't decode PNG");
+    return 1;
+  }
+
   LisPng_dump_ppm(png);
   LisPng_destroy(png);
 
   if (fclose(png_file) != 0) {
     const char *error_message = strerror(errno);
     LOGN("Couldn't close PNG file: %s", error_message);
-    goto err;
+    return 1;
   }
 
   return 0;
-err:
-  return 1;
 }
