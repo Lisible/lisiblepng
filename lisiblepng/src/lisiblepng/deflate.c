@@ -71,7 +71,7 @@ void OutputBuffer_expand(OutputBuffer *output_buffer) {
   output_buffer->cap = new_cap;
 }
 
-void OutputBuffer_push(OutputBuffer *output_buffer, char byte) {
+void OutputBuffer_push(OutputBuffer *output_buffer, uint8_t byte) {
   ASSERT(output_buffer != NULL);
   if (output_buffer->len == output_buffer->cap) {
     OutputBuffer_expand(output_buffer);
@@ -196,9 +196,13 @@ bool deflate_decompress_(Bitstream *bitstream,
       return false;
     }
     if (symbol < 256) {
-      OutputBuffer_push(output, (char)symbol);
+      OutputBuffer_push(output, symbol);
     } else if (symbol > 256) {
       symbol -= 257;
+      if (symbol >= 29) {
+        return false;
+      }
+
       int length = length_size_base[symbol] +
                    Bitstream_next_bits(bitstream, length_extra_bits[symbol]);
       symbol = huffman_table_decode(distance_table->symbols,
@@ -207,14 +211,13 @@ bool deflate_decompress_(Bitstream *bitstream,
         return false;
       }
 
-      int distance =
-          distance_offset_base[symbol] +
+      int distance_increment =
           Bitstream_next_bits(bitstream, distance_extra_bits[symbol]);
-      while (length > 0) {
+      unsigned distance = distance_offset_base[symbol] + distance_increment;
+      while (length--) {
         size_t output_buffer_length = OutputBuffer_length(output);
-        OutputBuffer_push(
-            output, (char)output->buffer[output_buffer_length - distance]);
-        length--;
+        OutputBuffer_push(output,
+                          output->buffer[output_buffer_length - distance]);
       }
     }
   }
@@ -230,6 +233,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
   while (!b_final) {
     LPNG_LOG_DBG0("Parse deflate block");
     b_final = Bitstream_next_bits(bitstream, BFINAL_LENGTH_BITS);
+    LPNG_LOG_DBG("Final block: %d", b_final);
     const uint8_t b_type = Bitstream_next_bits(bitstream, BTYPE_LENGTH_BITS);
     if (b_type == DeflateBlockType_NoCompression) {
       LPNG_LOG_ERR0("Uncompressed deflate blocks aren't supported");
@@ -391,8 +395,8 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
     return NULL;
   }
 
-  size_t adler32_offset = bitstream.current_byte_index;
-  if (bitstream.current_bit_offset % 8 != 0) {
+  size_t adler32_offset = bitstream.byte_offset;
+  if (bitstream.bit_index % 8 != 0) {
     adler32_offset++;
   }
 

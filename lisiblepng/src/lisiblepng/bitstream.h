@@ -8,8 +8,8 @@ typedef struct {
   const uint8_t *data;
   size_t data_size;
 
-  size_t current_byte_index;
-  uint8_t current_bit_offset;
+  size_t byte_offset;
+  uint8_t bit_index;
 } Bitstream;
 
 void Bitstream_init(Bitstream *bitstream, const uint8_t *data,
