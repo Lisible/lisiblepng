@@ -3,6 +3,7 @@ m_dep = cc.find_library('m', required: true)
 
 if get_option('buildtype').startswith('debug')
   add_project_arguments('-DLPNG_DEBUG_LOG', language: ['c'])
+  add_project_arguments('-DLPNG_COMPUTE_CRC', language: ['c'])
 endif
 
 lisiblepng_incdir = include_directories('src/')

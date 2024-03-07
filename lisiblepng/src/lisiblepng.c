@@ -109,33 +109,33 @@ uint8_t LisPngColourType_sample_count(const LisPngColourType colour_type) {
 }
 typedef struct {
   FILE *stream;
-#ifdef LISIBLE_PNG_COMPUTE_CRC
+#ifdef LPNG_COMPUTE_CRC
   uint32_t computed_crc;
-#endif // LISIBLE_PNG_COMPUTE_CRC
+#endif // LPNG_COMPUTE_CRC
 } DeflateDecompressor;
 
 void DeflateDecompressor_init(DeflateDecompressor *ctx, FILE *stream) {
   ASSERT(ctx != NULL);
   ASSERT(stream != NULL);
   ctx->stream = stream;
-#ifdef LISIBLE_PNG_COMPUTE_CRC
+#ifdef LPNG_COMPUTE_CRC
   ctx->computed_crc = 0xFFFFFFFFu;
-#endif // LISIBLE_PNG_COMPUTE_CRC
+#endif // LPNG_COMPUTE_CRC
 }
 
 void ParsingContext_crc_reset(DeflateDecompressor *ctx) {
   ASSERT(ctx != NULL);
-#ifdef LISIBLE_PNG_COMPUTE_CRC
+#ifdef LPNG_COMPUTE_CRC
   ctx->computed_crc = 0xFFFFFFFFu;
-#endif // LISIBLE_PNG_COMPUTE_CRC
+#endif // LPNG_COMPUTE_CRC
 }
 
-#ifdef LISIBLE_PNG_COMPUTE_CRC
+#ifdef LPNG_COMPUTE_CRC
 uint32_t ParsingContext_computed_crc(DeflateDecompressor *ctx) {
   ASSERT(ctx != NULL);
   return ctx->computed_crc ^ 0xFFFFFFFFu;
 }
-#endif // LISIBLE_PNG_COMPUTE_CRC
+#endif // LPNG_COMPUTE_CRC
 
 long ParsingContext_cursor_position(DeflateDecompressor *ctx) {
   ASSERT(ctx != NULL);
@@ -161,12 +161,12 @@ bool ParsingContext_parse_bytes(DeflateDecompressor *ctx, size_t byte_count,
     return false;
   }
 
-#ifdef LISIBLE_PNG_COMPUTE_CRC
+#ifdef LPNG_COMPUTE_CRC
   for (size_t i = 0; i < byte_count; i++) {
     const uint32_t index = (ctx->computed_crc ^ output_buffer[i]) & 0xFF;
     ctx->computed_crc = (ctx->computed_crc >> 8) ^ CRC32_TABLE[index];
   }
-#endif // LISIBLE_PNG_COMPUTE_CRC
+#endif // LPNG_COMPUTE_CRC
 
   return true;
 }
@@ -236,7 +236,7 @@ void ImageHeader_print_image_header(const ImageHeader *image_header) {
 }
 
 bool ParsingContext_validate_crc_if_required(DeflateDecompressor *ctx) {
-#ifdef LISIBLE_PNG_COMPUTE_CRC
+#ifdef LPNG_COMPUTE_CRC
   uint32_t computed_crc = ParsingContext_computed_crc(ctx);
   uint32_t crc;
   PARSE_FIELD(uint32_t, crc);
@@ -473,6 +473,7 @@ LisPng *LisPng_decode(FILE *stream) {
 #ifdef LPNG_DEBUG_LOG
     uint32_t type_le = uint32_t_to_le(type);
     LPNG_LOG_DBG("Parsing %.4s chunk", (char *)&type_le);
+    LPNG_LOG_DBG("Chunk length: %u", length);
 #endif
 
     switch (type) {
