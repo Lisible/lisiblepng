@@ -14,6 +14,11 @@ int main(int argc, char **argv) {
 
   const char *png_filepath = argv[1];
   FILE *png_file = fopen(png_filepath, "r");
+  fseek(png_file, 0, SEEK_END);
+  long file_size = ftell(png_file);
+  LOGN("File size: %ld bytes", file_size);
+  fseek(png_file, 0, SEEK_SET);
+
   if (!png_file) {
     const char *error_message = strerror(errno);
     LOGN("Couldn't open PNG file: %s", error_message);

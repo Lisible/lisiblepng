@@ -521,8 +521,72 @@ cleanup_data:
 err:
   return NULL;
 }
-
 #undef PARSE_FIELD
+
+void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
+  ASSERT(png != NULL);
+  ASSERT(output_data != NULL);
+  static const int TARGET_BYTES_PER_PIXEL = 4;
+  size_t sample_count = LisPngColourType_sample_count(png->colour_type);
+  size_t bits_per_pixel = png->bits_per_sample * sample_count;
+  size_t bytes_per_pixel = bits_per_pixel / 8;
+  if (png->bits_per_sample < 8) {
+    bytes_per_pixel = 1;
+  }
+
+  for (size_t pixel_index = 0; pixel_index < png->width * png->height;
+       pixel_index++) {
+    size_t source_pixel_base = pixel_index * bytes_per_pixel;
+    size_t target_pixel_base = pixel_index * TARGET_BYTES_PER_PIXEL;
+
+    if (png->colour_type == LisPngColourType_Greyscale) {
+      if (bits_per_pixel == 16) {
+        uint16_t grey = (png->data[source_pixel_base] << 8) |
+                        png->data[source_pixel_base + 1];
+        output_data[target_pixel_base] = grey / 2;
+        output_data[target_pixel_base + 1] = grey / 2;
+        output_data[target_pixel_base + 2] = grey / 2;
+        output_data[target_pixel_base + 3] = 0xFF;
+      } else {
+        size_t absolute_bit_offset = pixel_index * bits_per_pixel;
+        size_t byte_offset = absolute_bit_offset / 8;
+        size_t relative_bit_offset = absolute_bit_offset % 8;
+        uint8_t grey = (png->data[byte_offset] >>
+                        (7 - relative_bit_offset - (bits_per_pixel - 1))) &
+                       ((1 << bits_per_pixel) - 1);
+        output_data[target_pixel_base] = grey;
+        output_data[target_pixel_base + 1] = grey;
+        output_data[target_pixel_base + 2] = grey;
+        output_data[target_pixel_base + 3] = 0xFF;
+      }
+    } else if (png->colour_type == LisPngColourType_Truecolour) {
+      if (png->bits_per_sample == 16) {
+        uint16_t r = (png->data[source_pixel_base] << 8) |
+                     png->data[source_pixel_base + 1];
+        uint16_t g = (png->data[source_pixel_base + 2] << 8) |
+                     png->data[source_pixel_base + 3];
+        uint16_t b = (png->data[source_pixel_base + 4] << 8) |
+                     png->data[source_pixel_base + 5];
+        output_data[target_pixel_base] = r / 2;
+        output_data[target_pixel_base + 1] = g / 2;
+        output_data[target_pixel_base + 2] = b / 2;
+        output_data[target_pixel_base + 3] = 0xFF;
+      } else {
+        uint8_t r = png->data[source_pixel_base];
+        uint8_t g = png->data[source_pixel_base + 1];
+        uint8_t b = png->data[source_pixel_base + 2];
+        output_data[target_pixel_base] = r;
+        output_data[target_pixel_base + 1] = g;
+        output_data[target_pixel_base + 2] = b;
+        output_data[target_pixel_base + 3] = 0xFF;
+      }
+    } else {
+      LPNG_LOG_ERR0("Unsupported colour type");
+      exit(1);
+    }
+  }
+}
+
 void LisPng_destroy(LisPng *png) {
   free(png->data);
   free(png);

@@ -24,6 +24,15 @@ typedef struct LisPng LisPng;
 /// The returned PNG is owned by the caller and must be destroyed with
 /// Png_destroy.
 LisPng *LisPng_decode(FILE *stream);
+
+/// Writes the PNG image data as RGBA8 data to a buffer
+///
+/// Note: The output_data buffer must be allocated with enough memory
+/// (width*height*32)
+/// @param png The png
+/// @param output_data The output buffer
+void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data);
+
 /// Outputs the provided Png struct as a PPM image to stdout
 ///
 /// @param png The png
