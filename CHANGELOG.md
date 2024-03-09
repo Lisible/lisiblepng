@@ -6,8 +6,10 @@
 - Expose LisPngColourType enum
 - Add LisPngColourType_sample_count() function
 - Add LisPng accessor functions
-- Improve lisiblepng-bin error handling
 - Add LisPng_write_RGBA8_data()
+- Add support for colour type Indexed-colour
+- Improve lisiblepng-bin error handling
+- Fix a bug when reallocating image data
 
 ## 0.1.0 (2024-03-05)
 - Add PNG decoding support for colour types Greyscale and Truecolour

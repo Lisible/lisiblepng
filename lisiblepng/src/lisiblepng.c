@@ -15,6 +15,7 @@ const uint8_t PNG_SIGNATURE[PNG_SIGNATURE_LENGTH] = {0x89, 0x50, 0x4E, 0x47,
 #define IHDR_CHUNK_TYPE 0x49484452
 #define IEND_CHUNK_TYPE 0x49454e44
 #define IDAT_CHUNK_TYPE 0x49444154
+#define PLTE_CHUNK_TYPE 0x504C5445
 
 const uint32_t CRC32_TABLE[256] = {
     0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
@@ -61,8 +62,19 @@ const uint32_t CRC32_TABLE[256] = {
     0x54DE5729, 0x23D967BF, 0xB3667A2E, 0xC4614AB8, 0x5D681B02, 0x2A6F2B94,
     0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D};
 
+typedef struct {
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+} PaletteEntry;
+typedef struct {
+  PaletteEntry entries[256];
+  size_t entry_count;
+} Palette;
+
 struct LisPng {
   uint8_t *data;
+  Palette *palette;
   size_t width;
   size_t height;
   LisPngColourType colour_type;
@@ -294,22 +306,57 @@ bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
   return true;
 }
 
-bool parse_IDAT_chunk(DeflateDecompressor *ctx, uint32_t data_length,
+bool parse_IDAT_chunk(DeflateDecompressor *decompressor, uint32_t data_length,
                       ImageData *image_data) {
-  ASSERT(ctx != NULL);
+  ASSERT(decompressor != NULL);
   ASSERT(image_data != NULL);
 
   image_data->data =
       realloc(image_data->data, image_data->length + data_length);
-  ParsingContext_parse_bytes(ctx, data_length,
-                             &image_data->data[image_data->length]);
+  if (!ParsingContext_parse_bytes(decompressor, data_length,
+                                  &image_data->data[image_data->length])) {
+    return false;
+  }
   image_data->length = image_data->length + data_length;
 
-  if (!ParsingContext_validate_crc_if_required(ctx)) {
+  if (!ParsingContext_validate_crc_if_required(decompressor)) {
     return false;
   }
 
   return true;
+}
+
+Palette *parse_PLTE_chunk(DeflateDecompressor *decompressor,
+                          uint32_t data_length) {
+  ASSERT(decompressor != NULL);
+  if (data_length % 3 != 0) {
+    return NULL;
+  }
+
+  Palette *palette = malloc(sizeof(Palette));
+  if (!palette) {
+    return NULL;
+  }
+
+  palette->entry_count = data_length / 3;
+  for (size_t entry_index = 0; entry_index < palette->entry_count;
+       entry_index++) {
+    if (!ParsingContext_parse_bytes(decompressor, 1,
+                                    &palette->entries[entry_index].r))
+      return false;
+    if (!ParsingContext_parse_bytes(decompressor, 1,
+                                    &palette->entries[entry_index].g))
+      return false;
+    if (!ParsingContext_parse_bytes(decompressor, 1,
+                                    &palette->entries[entry_index].b))
+      return false;
+  }
+
+  if (!ParsingContext_validate_crc_if_required(decompressor)) {
+    return false;
+  }
+
+  return palette;
 }
 
 uint32_t uint32_t_to_le(uint32_t value) {
@@ -455,6 +502,8 @@ LisPng *LisPng_decode(FILE *stream) {
   ImageHeader_print_image_header(&header);
 
   ImageData image_data = {0};
+  Palette *palette = NULL;
+
   size_t parsed_data_chunk_count = 0;
   bool end_reached = false;
   while (!end_reached) {
@@ -489,6 +538,13 @@ LisPng *LisPng_decode(FILE *stream) {
       end_reached = true;
       ParsingContext_skip_bytes(&ctx, sizeof(uint32_t));
       break;
+    case PLTE_CHUNK_TYPE:
+      palette = parse_PLTE_chunk(&ctx, length);
+      if (!palette) {
+        LPNG_LOG_ERR0("Couldn't parse PLTE chunk");
+        goto cleanup_data;
+      }
+      break;
     default:
       LPNG_LOG_DBG0("Unknown chunk type, skipping chunk...");
       ParsingContext_skip_bytes(&ctx, length + sizeof(uint32_t));
@@ -506,6 +562,7 @@ LisPng *LisPng_decode(FILE *stream) {
   png->height = header.height;
   png->colour_type = header.colour_type;
   png->bits_per_sample = header.bit_depth;
+  png->palette = palette;
   size_t output_length;
   uint8_t *output_buffer =
       zlib_decompress(image_data.data, image_data.length, &output_length);
@@ -519,6 +576,7 @@ LisPng *LisPng_decode(FILE *stream) {
 
 cleanup_data:
   free(image_data.data);
+  free(palette);
 err:
   return NULL;
 }
@@ -540,7 +598,20 @@ void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
     size_t source_pixel_base = pixel_index * bytes_per_pixel;
     size_t target_pixel_base = pixel_index * TARGET_BYTES_PER_PIXEL;
 
-    if (png->colour_type == LisPngColourType_Greyscale) {
+    if (png->colour_type == LisPngColourType_IndexedColour) {
+      ASSERT(png->palette != NULL);
+      size_t absolute_bit_offset = pixel_index * bits_per_pixel;
+      size_t byte_offset = absolute_bit_offset / 8;
+      size_t relative_bit_offset = absolute_bit_offset % 8;
+      uint8_t index = (png->data[byte_offset] >>
+                       (7 - relative_bit_offset - (bits_per_pixel - 1))) &
+                      ((1 << bits_per_pixel) - 1);
+      PaletteEntry *entry = &png->palette->entries[index];
+      output_data[target_pixel_base] = entry->r;
+      output_data[target_pixel_base + 1] = entry->g;
+      output_data[target_pixel_base + 2] = entry->b;
+      output_data[target_pixel_base + 3] = 0xFF;
+    } else if (png->colour_type == LisPngColourType_Greyscale) {
       if (bits_per_pixel == 16) {
         uint16_t grey = (png->data[source_pixel_base] << 8) |
                         png->data[source_pixel_base + 1];
@@ -589,6 +660,10 @@ void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
 }
 
 void LisPng_destroy(LisPng *png) {
+  if (png->colour_type == LisPngColourType_IndexedColour) {
+    free(png->palette);
+  }
+
   free(png->data);
   free(png);
 }
@@ -596,7 +671,11 @@ void LisPng_dump_ppm(const LisPng *png) {
   ASSERT(png != NULL);
   printf("P3\n");
   printf("%zu %zu\n", png->width, png->height);
-  printf("%d\n", (1 << png->bits_per_sample) - 1);
+  if (png->colour_type == LisPngColourType_IndexedColour) {
+    printf("255\n");
+  } else {
+    printf("%d\n", (1 << png->bits_per_sample) - 1);
+  }
   size_t sample_count = LisPngColourType_sample_count(png->colour_type);
   size_t bits_per_pixel = png->bits_per_sample * sample_count;
   size_t bytes_per_pixel = bits_per_pixel / 8;
@@ -606,7 +685,17 @@ void LisPng_dump_ppm(const LisPng *png) {
   for (size_t pixel_index = 0; pixel_index < png->height * png->width;
        pixel_index++) {
     size_t pixel_base = pixel_index * bytes_per_pixel;
-    if (png->colour_type == LisPngColourType_Greyscale) {
+    if (png->colour_type == LisPngColourType_IndexedColour) {
+      ASSERT(png->palette != NULL);
+      size_t absolute_bit_offset = pixel_index * bits_per_pixel;
+      size_t byte_offset = absolute_bit_offset / 8;
+      size_t relative_bit_offset = absolute_bit_offset % 8;
+      uint8_t index = (png->data[byte_offset] >>
+                       (7 - relative_bit_offset - (bits_per_pixel - 1))) &
+                      ((1 << bits_per_pixel) - 1);
+      PaletteEntry *entry = &png->palette->entries[index];
+      printf("%u %u %u\n", entry->r, entry->g, entry->b);
+    } else if (png->colour_type == LisPngColourType_Greyscale) {
       if (bits_per_pixel == 16) {
         uint16_t grey =
             (png->data[pixel_base] << 8) | png->data[pixel_base + 1];
