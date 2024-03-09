@@ -299,10 +299,11 @@ bool parse_IDAT_chunk(DeflateDecompressor *ctx, uint32_t data_length,
   ASSERT(ctx != NULL);
   ASSERT(image_data != NULL);
 
-  image_data->data = realloc(image_data->data, data_length);
+  image_data->data =
+      realloc(image_data->data, image_data->length + data_length);
   ParsingContext_parse_bytes(ctx, data_length,
                              &image_data->data[image_data->length]);
-  image_data->length = data_length;
+  image_data->length = image_data->length + data_length;
 
   if (!ParsingContext_validate_crc_if_required(ctx)) {
     return false;
