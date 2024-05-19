@@ -1,6 +1,6 @@
 #include "deflate.h"
-#include "assert.h"
 #include "bitstream.h"
+#include <lisiblestd/assert.h>
 #include <string.h>
 
 #define CM_LENGTH_BITS 4
@@ -49,10 +49,10 @@ typedef struct {
 } OutputBuffer;
 
 void OutputBuffer_init(OutputBuffer *output_buffer) {
-  ASSERT(output_buffer != NULL);
+  LSTD_ASSERT(output_buffer != NULL);
   output_buffer->buffer = calloc(DEFLATE_OUTPUT_BUFFER_INITIAL_CAPACITY, 1);
   if (!output_buffer->buffer) {
-    LPNG_LOG_ERR0("Couldn't allocate deflate output buffer (out of memory?)");
+    LOG0_ERROR("Couldn't allocate deflate output buffer (out of memory?)");
     abort();
   }
   output_buffer->cap = DEFLATE_OUTPUT_BUFFER_INITIAL_CAPACITY;
@@ -60,11 +60,11 @@ void OutputBuffer_init(OutputBuffer *output_buffer) {
 }
 
 void OutputBuffer_expand(OutputBuffer *output_buffer) {
-  ASSERT(output_buffer != NULL);
+  LSTD_ASSERT(output_buffer != NULL);
   size_t new_cap = output_buffer->cap * 2;
   output_buffer->buffer = realloc(output_buffer->buffer, new_cap);
   if (!output_buffer->buffer) {
-    LPNG_LOG_ERR0("Couldn't reallocate deflate output buffer (out of memory?)");
+    LOG0_ERROR("Couldn't reallocate deflate output buffer (out of memory?)");
     abort();
   }
 
@@ -72,7 +72,7 @@ void OutputBuffer_expand(OutputBuffer *output_buffer) {
 }
 
 void OutputBuffer_push(OutputBuffer *output_buffer, uint8_t byte) {
-  ASSERT(output_buffer != NULL);
+  LSTD_ASSERT(output_buffer != NULL);
   if (output_buffer->len == output_buffer->cap) {
     OutputBuffer_expand(output_buffer);
   }
@@ -81,15 +81,15 @@ void OutputBuffer_push(OutputBuffer *output_buffer, uint8_t byte) {
 }
 
 size_t OutputBuffer_length(const OutputBuffer *output_buffer) {
-  ASSERT(output_buffer != NULL);
+  LSTD_ASSERT(output_buffer != NULL);
   return output_buffer->len;
 }
 
 int huffman_table_decode(const uint16_t *symbols, const uint16_t *counts,
                          Bitstream *bitstream) {
-  ASSERT(symbols != NULL);
-  ASSERT(counts != NULL);
-  ASSERT(bitstream != NULL);
+  LSTD_ASSERT(symbols != NULL);
+  LSTD_ASSERT(counts != NULL);
+  LSTD_ASSERT(bitstream != NULL);
   int code = 0;
   int index = 0;
   int first = 0;
@@ -112,9 +112,9 @@ int huffman_table_decode(const uint16_t *symbols, const uint16_t *counts,
 void build_huffman_table_from_codelengths(uint16_t *symbols, uint16_t *counts,
                                           const uint16_t *codelengths,
                                           uint16_t codelength_count) {
-  ASSERT(symbols != NULL);
-  ASSERT(counts != NULL);
-  ASSERT(codelengths != NULL);
+  LSTD_ASSERT(symbols != NULL);
+  LSTD_ASSERT(counts != NULL);
+  LSTD_ASSERT(codelengths != NULL);
 
   for (int i = 0; i < codelength_count; i++) {
     counts[codelengths[i]]++;
@@ -137,8 +137,8 @@ void build_huffman_table_from_codelengths(uint16_t *symbols, uint16_t *counts,
 void CodeLengthTable_build_from_codelengths(
     CodeLengthTable *table,
     uint16_t codelength_codelengths[CODE_LENGTH_ALPHABET_MAX_SYMBOL_COUNT]) {
-  ASSERT(table != NULL);
-  ASSERT(codelength_codelengths != NULL);
+  LSTD_ASSERT(table != NULL);
+  LSTD_ASSERT(codelength_codelengths != NULL);
   static const uint8_t CODELENGTH_MAPPING[] = {
       16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
   uint16_t mapped_codelengths[CODE_LENGTH_ALPHABET_MAX_SYMBOL_COUNT] = {0};
@@ -153,8 +153,8 @@ void CodeLengthTable_build_from_codelengths(
 
 void build_codelength_table(CodeLengthTable *codelength_table,
                             Bitstream *bitstream, const uint8_t hclen) {
-  ASSERT(codelength_table != NULL);
-  ASSERT(bitstream != NULL);
+  LSTD_ASSERT(codelength_table != NULL);
+  LSTD_ASSERT(bitstream != NULL);
 
   uint16_t codelengths_codelengths[CODE_LENGTH_ALPHABET_MAX_SYMBOL_COUNT] = {0};
   for (int i = 0; i < hclen; i++) {
@@ -169,10 +169,10 @@ bool deflate_decompress_(Bitstream *bitstream,
                          const LengthLiteralTable *length_literal_table,
                          const DistanceTable *distance_table,
                          OutputBuffer *output) {
-  ASSERT(bitstream != NULL);
-  ASSERT(output != NULL);
-  ASSERT(length_literal_table != NULL);
-  ASSERT(distance_table != NULL);
+  LSTD_ASSERT(bitstream != NULL);
+  LSTD_ASSERT(output != NULL);
+  LSTD_ASSERT(length_literal_table != NULL);
+  LSTD_ASSERT(distance_table != NULL);
   static const uint16_t length_size_base[29] = {
       3,  4,  5,  6,  7,  8,  9,  10, 11,  13,  15,  17,  19,  23, 27,
       31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258};
@@ -192,7 +192,7 @@ bool deflate_decompress_(Bitstream *bitstream,
     symbol = huffman_table_decode(length_literal_table->symbols,
                                   length_literal_table->counts, bitstream);
     if (symbol < 0) {
-      LPNG_LOG_ERR0("Unknown symbol decoded");
+      LOG0_ERROR("Unknown symbol decoded");
       return false;
     }
     if (symbol < 256) {
@@ -226,21 +226,21 @@ bool deflate_decompress_(Bitstream *bitstream,
 }
 
 bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
-  ASSERT(bitstream != NULL);
-  ASSERT(output != NULL);
+  LSTD_ASSERT(bitstream != NULL);
+  LSTD_ASSERT(output != NULL);
 
   uint8_t b_final = 0;
   while (!b_final) {
-    LPNG_LOG_DBG0("Parse deflate block");
+    LOG0_DEBUG("Parse deflate block");
     b_final = Bitstream_next_bits(bitstream, BFINAL_LENGTH_BITS);
-    LPNG_LOG_DBG("Final block: %d", b_final);
+    LOG_DEBUG("Final block: %d", b_final);
     const uint8_t b_type = Bitstream_next_bits(bitstream, BTYPE_LENGTH_BITS);
     if (b_type == DeflateBlockType_NoCompression) {
-      LPNG_LOG_ERR0("Uncompressed deflate blocks aren't supported");
+      LOG0_ERROR("Uncompressed deflate blocks aren't supported");
       abort();
     } else {
       if (b_type == DeflateBlockType_FixedHuffman) {
-        LPNG_LOG_DBG0("Static huffman table");
+        LOG0_DEBUG("Static huffman table");
         static bool are_tables_blank = true;
         static LengthLiteralTable length_literal_table = {0};
         static DistanceTable distance_table = {0};
@@ -248,7 +248,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
         uint16_t lenlit_codelengths[FIXED_LENGTH_LITERAL_CODE_COUNT];
 
         if (are_tables_blank) {
-          LPNG_LOG_DBG0("Computing static huffman table");
+          LOG0_DEBUG("Computing static huffman table");
           for (int symbol = 0; symbol < 144; symbol++) {
             lenlit_codelengths[symbol] = 8;
           }
@@ -288,11 +288,11 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
         const uint16_t hlit = Bitstream_next_bits(bitstream, 5) + 257;
         const uint8_t hdist = Bitstream_next_bits(bitstream, 5) + 1;
         const uint8_t hclen = Bitstream_next_bits(bitstream, 4) + 4;
-        LPNG_LOG_DBG("Dynamic table:\n"
-                     "hlit: %d\n"
-                     "hdist: %d\n"
-                     "hclen: %d",
-                     hlit, hdist, hclen);
+        LOG_DEBUG("Dynamic table:\n"
+                  "hlit: %d\n"
+                  "hdist: %d\n"
+                  "hclen: %d",
+                  hlit, hdist, hclen);
         CodeLengthTable codelength_table = {0};
         build_codelength_table(&codelength_table, bitstream, hclen);
 
@@ -303,7 +303,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
           int symbol = huffman_table_decode(codelength_table.symbols,
                                             codelength_table.counts, bitstream);
           if (symbol < 0) {
-            LPNG_LOG_ERR0("Unknown symbol decoded using huffman table");
+            LOG0_ERROR("Unknown symbol decoded using huffman table");
             return false;
           } else if (symbol < 16) {
             lenlit_dist_codelengths[index++] = symbol;
@@ -326,7 +326,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
         }
 
         // The block must have an end
-        ASSERT(lenlit_dist_codelengths[256] > 0);
+        LSTD_ASSERT(lenlit_dist_codelengths[256] > 0);
 
         build_huffman_table_from_codelengths(length_literal_table.symbols,
                                              length_literal_table.counts,
@@ -346,7 +346,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
 uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
                          const size_t compressed_data_length,
                          size_t *output_length) {
-  ASSERT(compressed_data_buffer != NULL);
+  LSTD_ASSERT(compressed_data_buffer != NULL);
 
   Bitstream bitstream;
   Bitstream_init(&bitstream, compressed_data_buffer, compressed_data_length);
@@ -358,13 +358,13 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
   uint16_t flevel = Bitstream_next_bits(&bitstream, FLEVEL_LENGTH_BITS);
 
 #ifdef LPNG_DEBUG_LOG
-  LPNG_LOG_DBG("zlib informations:\n"
-               "- CM (compression method): %d\n"
-               "- CINFO (compression info): %d\n"
-               "- FCHECK (check bits for CMF and FLG): %d\n"
-               "- FDICT (preset dictionary): %d\n"
-               "- FLEVEL (compression level): %d",
-               cm, cinfo, fcheck, fdict, flevel);
+  LOG_DEBUG("zlib informations:\n"
+            "- CM (compression method): %d\n"
+            "- CINFO (compression info): %d\n"
+            "- FCHECK (check bits for CMF and FLG): %d\n"
+            "- FDICT (preset dictionary): %d\n"
+            "- FLEVEL (compression level): %d",
+            cm, cinfo, fcheck, fdict, flevel);
 #else
   (void)cm;
   (void)cinfo;
@@ -374,24 +374,24 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
   uint16_t cmf = bitstream.data[0];
   uint16_t flg = bitstream.data[1];
   if ((cmf * 256 + flg) % 31 != 0) {
-    LPNG_LOG_ERR0("fcheck validation failed");
+    LOG0_ERROR("fcheck validation failed");
     return false;
   }
 
   if (flevel > 9) {
-    LPNG_LOG_ERR0("Invalid compression level");
+    LOG0_ERROR("Invalid compression level");
     return NULL;
   }
 
   if (fdict != 0) {
-    LPNG_LOG_ERR0("preset dictionnaries are unsupported");
+    LOG0_ERROR("preset dictionnaries are unsupported");
     return NULL;
   }
 
   OutputBuffer output;
   OutputBuffer_init(&output);
   if (!deflate_decompress(&bitstream, &output)) {
-    LPNG_LOG_ERR0("deflate decompression failed");
+    LOG0_ERROR("deflate decompression failed");
     return NULL;
   }
 
@@ -404,7 +404,7 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
                      (bitstream.data[adler32_offset + 2] << 8) +
                      (bitstream.data[adler32_offset + 1] << 16) +
                      (bitstream.data[adler32_offset] << 24);
-  LPNG_LOG_DBG("Adler32 checksum: %u", adler32);
+  LOG_DEBUG("Adler32 checksum: %u", adler32);
   uint32_t a = 1;
   uint32_t b = 0;
   for (size_t i = 0; i < output.len; i++) {
@@ -412,9 +412,9 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
     b = (b + a) % 65521;
   }
   uint32_t computed_adler32 = (b << 16) | a;
-  LPNG_LOG_DBG("Computed Adler32 checksum: %u", computed_adler32);
+  LOG_DEBUG("Computed Adler32 checksum: %u", computed_adler32);
   if (adler32 != computed_adler32) {
-    LPNG_LOG_ERR0("Invalid checksum");
+    LOG0_ERROR("Invalid checksum");
     exit(1);
   }
 

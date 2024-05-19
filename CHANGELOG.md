@@ -10,6 +10,7 @@
 - Add support for colour type Indexed-colour
 - Improve lisiblepng-bin error handling
 - Fix a bug when reallocating image data
+- Replace log and assert modules with lisiblestd's
 
 ## 0.1.0 (2024-03-05)
 - Add PNG decoding support for colour types Greyscale and Truecolour

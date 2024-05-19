@@ -1,8 +1,8 @@
 #include "lisiblepng.h"
-#include "lisiblepng/assert.h"
 #include "lisiblepng/deflate.h"
-#include "lisiblepng/log.h"
 #include <errno.h>
+#include <lisiblestd/assert.h>
+#include <lisiblestd/log.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -82,23 +82,23 @@ struct LisPng {
 };
 
 LisPngColourType LisPng_colour_type(const LisPng *png) {
-  ASSERT(png != NULL);
+  LSTD_ASSERT(png != NULL);
   return png->colour_type;
 }
 uint8_t LisPng_bits_per_sample(const LisPng *png) {
-  ASSERT(png != NULL);
+  LSTD_ASSERT(png != NULL);
   return png->bits_per_sample;
 }
 uint8_t *LisPng_data_ptr(const LisPng *png) {
-  ASSERT(png != NULL);
+  LSTD_ASSERT(png != NULL);
   return png->data;
 }
 uint32_t LisPng_width(const LisPng *png) {
-  ASSERT(png != NULL);
+  LSTD_ASSERT(png != NULL);
   return png->width;
 }
 uint32_t LisPng_height(const LisPng *png) {
-  ASSERT(png != NULL);
+  LSTD_ASSERT(png != NULL);
   return png->height;
 }
 
@@ -115,7 +115,7 @@ uint8_t LisPngColourType_sample_count(const LisPngColourType colour_type) {
   case LisPngColourType_TruecolourWithAlpha:
     return 4;
   default:
-    LPNG_LOG_ERR0("Unknown colour type");
+    LOG0_ERROR("Unknown colour type");
     abort();
   }
 }
@@ -127,8 +127,8 @@ typedef struct {
 } DeflateDecompressor;
 
 void DeflateDecompressor_init(DeflateDecompressor *ctx, FILE *stream) {
-  ASSERT(ctx != NULL);
-  ASSERT(stream != NULL);
+  LSTD_ASSERT(ctx != NULL);
+  LSTD_ASSERT(stream != NULL);
   ctx->stream = stream;
 #ifdef LPNG_COMPUTE_CRC
   ctx->computed_crc = 0xFFFFFFFFu;
@@ -136,7 +136,7 @@ void DeflateDecompressor_init(DeflateDecompressor *ctx, FILE *stream) {
 }
 
 void ParsingContext_crc_reset(DeflateDecompressor *ctx) {
-  ASSERT(ctx != NULL);
+  LSTD_ASSERT(ctx != NULL);
 #ifdef LPNG_COMPUTE_CRC
   ctx->computed_crc = 0xFFFFFFFFu;
 #endif // LPNG_COMPUTE_CRC
@@ -144,20 +144,20 @@ void ParsingContext_crc_reset(DeflateDecompressor *ctx) {
 
 #ifdef LPNG_COMPUTE_CRC
 uint32_t ParsingContext_computed_crc(DeflateDecompressor *ctx) {
-  ASSERT(ctx != NULL);
+  LSTD_ASSERT(ctx != NULL);
   return ctx->computed_crc ^ 0xFFFFFFFFu;
 }
 #endif // LPNG_COMPUTE_CRC
 
 long ParsingContext_cursor_position(DeflateDecompressor *ctx) {
-  ASSERT(ctx != NULL);
+  LSTD_ASSERT(ctx != NULL);
   return ftell(ctx->stream);
 }
 
 bool ParsingContext_skip_bytes(DeflateDecompressor *ctx, size_t byte_count) {
-  ASSERT(ctx != NULL);
+  LSTD_ASSERT(ctx != NULL);
   if (fseek(ctx->stream, byte_count, SEEK_CUR) != 0) {
-    LPNG_LOG_ERR("Couldn't skip bytes: %s", strerror(errno));
+    LOG_ERROR("Couldn't skip bytes: %s", strerror(errno));
     return false;
   }
 
@@ -166,10 +166,10 @@ bool ParsingContext_skip_bytes(DeflateDecompressor *ctx, size_t byte_count) {
 
 bool ParsingContext_parse_bytes(DeflateDecompressor *ctx, size_t byte_count,
                                 uint8_t *output_buffer) {
-  ASSERT(ctx != NULL);
-  ASSERT(output_buffer != NULL);
+  LSTD_ASSERT(ctx != NULL);
+  LSTD_ASSERT(output_buffer != NULL);
   if (fread(output_buffer, 1, byte_count, ctx->stream) < byte_count) {
-    LPNG_LOG_ERR0("Couldn't parse bytes, EOF reached");
+    LOG0_ERROR("Couldn't parse bytes, EOF reached");
     return false;
   }
 
@@ -185,8 +185,8 @@ bool ParsingContext_parse_bytes(DeflateDecompressor *ctx, size_t byte_count,
 
 bool ParsingContext_parse_uint32_t(DeflateDecompressor *ctx,
                                    uint32_t *output_u32) {
-  ASSERT(ctx != NULL);
-  ASSERT(output_u32 != NULL);
+  LSTD_ASSERT(ctx != NULL);
+  LSTD_ASSERT(output_u32 != NULL);
   uint8_t bytes[4];
   if (!ParsingContext_parse_bytes(ctx, 4, bytes)) {
     return false;
@@ -198,8 +198,8 @@ bool ParsingContext_parse_uint32_t(DeflateDecompressor *ctx,
 
 bool ParsingContext_parse_uint8_t(DeflateDecompressor *ctx,
                                   uint8_t *output_u8) {
-  ASSERT(ctx != NULL);
-  ASSERT(output_u8 != NULL);
+  LSTD_ASSERT(ctx != NULL);
+  LSTD_ASSERT(output_u8 != NULL);
   if (!ParsingContext_parse_bytes(ctx, 1, output_u8)) {
     return false;
   }
@@ -233,18 +233,17 @@ typedef struct {
 } ImageData;
 
 void ImageHeader_print_image_header(const ImageHeader *image_header) {
-  ASSERT(image_header != NULL);
-  LPNG_LOG_DBG("Image header:\n"
-               "- dimensions: %dx%d\n"
-               "- bit depth: %d\n"
-               "- colour type: %d\n"
-               "- compression method: %d\n"
-               "- filter method: %d\n"
-               "- interlace method: %d",
-               image_header->width, image_header->height,
-               image_header->bit_depth, image_header->colour_type,
-               image_header->compression_method, image_header->filter_method,
-               image_header->interlace_method);
+  LSTD_ASSERT(image_header != NULL);
+  LOG_DEBUG("Image header:\n"
+            "- dimensions: %dx%d\n"
+            "- bit depth: %d\n"
+            "- colour type: %d\n"
+            "- compression method: %d\n"
+            "- filter method: %d\n"
+            "- interlace method: %d",
+            image_header->width, image_header->height, image_header->bit_depth,
+            image_header->colour_type, image_header->compression_method,
+            image_header->filter_method, image_header->interlace_method);
 }
 
 bool ParsingContext_validate_crc_if_required(DeflateDecompressor *ctx) {
@@ -253,7 +252,7 @@ bool ParsingContext_validate_crc_if_required(DeflateDecompressor *ctx) {
   uint32_t crc;
   PARSE_FIELD(uint32_t, crc);
   if (computed_crc != crc) {
-    LPNG_LOG_ERR0("Invalid CRC checksum");
+    LOG0_ERROR("Invalid CRC checksum");
     return false;
   }
 #else
@@ -269,8 +268,8 @@ bool is_valid_bit_depth(uint8_t bit_depth) {
 }
 
 bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
-  ASSERT(ctx != NULL);
-  ASSERT(image_header != NULL);
+  LSTD_ASSERT(ctx != NULL);
+  LSTD_ASSERT(image_header != NULL);
 
   uint32_t length;
   PARSE_FIELD(uint32_t, length);
@@ -280,7 +279,7 @@ bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
   uint32_t type;
   PARSE_FIELD(uint32_t, type);
   if (type != IHDR_CHUNK_TYPE) {
-    LPNG_LOG_ERR0("Expected IHDR chunk");
+    LOG0_ERROR("Expected IHDR chunk");
     return false;
   }
 
@@ -289,7 +288,7 @@ bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
   PARSE_FIELD(uint32_t, image_header->height);
   PARSE_FIELD(uint8_t, image_header->bit_depth);
   if (!is_valid_bit_depth(image_header->bit_depth)) {
-    LPNG_LOG_ERR("Invalid bitdepth: %d", image_header->bit_depth);
+    LOG_ERROR("Invalid bitdepth: %d", image_header->bit_depth);
     return false;
   }
   PARSE_FIELD(uint8_t, image_header->colour_type);
@@ -297,7 +296,7 @@ bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
   PARSE_FIELD(uint8_t, image_header->filter_method);
   PARSE_FIELD(uint8_t, image_header->interlace_method);
   long read_data_length = ParsingContext_cursor_position(ctx) - data_start;
-  ASSERT(read_data_length == length);
+  LSTD_ASSERT(read_data_length == length);
 
   if (!ParsingContext_validate_crc_if_required(ctx)) {
     return false;
@@ -308,8 +307,8 @@ bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
 
 bool parse_IDAT_chunk(DeflateDecompressor *decompressor, uint32_t data_length,
                       ImageData *image_data) {
-  ASSERT(decompressor != NULL);
-  ASSERT(image_data != NULL);
+  LSTD_ASSERT(decompressor != NULL);
+  LSTD_ASSERT(image_data != NULL);
 
   image_data->data =
       realloc(image_data->data, image_data->length + data_length);
@@ -328,7 +327,7 @@ bool parse_IDAT_chunk(DeflateDecompressor *decompressor, uint32_t data_length,
 
 Palette *parse_PLTE_chunk(DeflateDecompressor *decompressor,
                           uint32_t data_length) {
-  ASSERT(decompressor != NULL);
+  LSTD_ASSERT(decompressor != NULL);
   if (data_length % 3 != 0) {
     return NULL;
   }
@@ -420,10 +419,10 @@ void apply_reconstruction_functions_to_scanline(
     uint8_t *output_scanline, const uint8_t *input_scanline,
     const uint8_t *previous_output_scanline, size_t filter_type,
     size_t scanline_size, size_t bytes_per_pixel) {
-  ASSERT(output_scanline != NULL);
-  ASSERT(input_scanline != NULL);
-  ASSERT(filter_type <
-         sizeof(reconstruction_functions) / sizeof(ReconstructionFn));
+  LSTD_ASSERT(output_scanline != NULL);
+  LSTD_ASSERT(input_scanline != NULL);
+  LSTD_ASSERT(filter_type <
+              sizeof(reconstruction_functions) / sizeof(ReconstructionFn));
 
   for (size_t i = 0; i < scanline_size / bytes_per_pixel; i++) {
     for (size_t byte = 0; byte < bytes_per_pixel; byte++) {
@@ -451,8 +450,8 @@ void apply_reconstruction_functions_to_scanline(
 
 void apply_reconstruction_functions(LisPng *image,
                                     const uint8_t *decompressed_data_buffer) {
-  ASSERT(image != NULL);
-  ASSERT(decompressed_data_buffer != NULL);
+  LSTD_ASSERT(image != NULL);
+  LSTD_ASSERT(decompressed_data_buffer != NULL);
   size_t sample_count = LisPngColourType_sample_count(image->colour_type);
   size_t bits_per_pixel = (image->bits_per_sample * sample_count);
   size_t bytes_per_pixel = bits_per_pixel / 8;
@@ -486,12 +485,12 @@ LisPng *LisPng_decode(FILE *stream) {
   uint8_t parsed_png_signature[PNG_SIGNATURE_LENGTH];
   if (!ParsingContext_parse_bytes(&ctx, PNG_SIGNATURE_LENGTH,
                                   parsed_png_signature)) {
-    LPNG_LOG_ERR0("Couldn't parse signature");
+    LOG0_ERROR("Couldn't parse signature");
     goto err;
   }
 
   if (!matches_png_signature(parsed_png_signature)) {
-    LPNG_LOG_ERR0("Invalid signature");
+    LOG0_ERROR("Invalid signature");
     goto err;
   }
 
@@ -509,27 +508,27 @@ LisPng *LisPng_decode(FILE *stream) {
   while (!end_reached) {
     uint32_t length;
     if (!ParsingContext_parse_uint32_t(&ctx, &length)) {
-      LPNG_LOG_ERR0("Couldn't parse chunk length");
+      LOG0_ERROR("Couldn't parse chunk length");
       goto cleanup_data;
     }
 
     ParsingContext_crc_reset(&ctx);
     uint32_t type;
     if (!ParsingContext_parse_uint32_t(&ctx, &type)) {
-      LPNG_LOG_ERR0("Couldn't parse chunk type");
+      LOG0_ERROR("Couldn't parse chunk type");
       goto cleanup_data;
     }
 
 #ifdef LPNG_DEBUG_LOG
     uint32_t type_le = uint32_t_to_le(type);
-    LPNG_LOG_DBG("Parsing %.4s chunk", (char *)&type_le);
-    LPNG_LOG_DBG("Chunk length: %u", length);
+    LOG_DEBUG("Parsing %.4s chunk", (char *)&type_le);
+    LOG_DEBUG("Chunk length: %u", length);
 #endif
 
     switch (type) {
     case IDAT_CHUNK_TYPE:
       if (!parse_IDAT_chunk(&ctx, length, &image_data)) {
-        LPNG_LOG_ERR0("Couldn't parse IDAT chunk");
+        LOG0_ERROR("Couldn't parse IDAT chunk");
         goto cleanup_data;
       }
       parsed_data_chunk_count++;
@@ -541,23 +540,23 @@ LisPng *LisPng_decode(FILE *stream) {
     case PLTE_CHUNK_TYPE:
       palette = parse_PLTE_chunk(&ctx, length);
       if (!palette) {
-        LPNG_LOG_ERR0("Couldn't parse PLTE chunk");
+        LOG0_ERROR("Couldn't parse PLTE chunk");
         goto cleanup_data;
       }
       break;
     default:
-      LPNG_LOG_DBG0("Unknown chunk type, skipping chunk...");
+      LOG0_DEBUG("Unknown chunk type, skipping chunk...");
       ParsingContext_skip_bytes(&ctx, length + sizeof(uint32_t));
       break;
     }
   }
 
   if (parsed_data_chunk_count == 0) {
-    LPNG_LOG_ERR0("No IDAT chunk found, at least one is required");
+    LOG0_ERROR("No IDAT chunk found, at least one is required");
     goto cleanup_data;
   }
 
-  LPNG_LOG_DBG("Data length: %zu", image_data.length);
+  LOG_DEBUG("Data length: %zu", image_data.length);
   png->width = header.width;
   png->height = header.height;
   png->colour_type = header.colour_type;
@@ -583,8 +582,8 @@ err:
 #undef PARSE_FIELD
 
 void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
-  ASSERT(png != NULL);
-  ASSERT(output_data != NULL);
+  LSTD_ASSERT(png != NULL);
+  LSTD_ASSERT(output_data != NULL);
   static const int TARGET_BYTES_PER_PIXEL = 4;
   size_t sample_count = LisPngColourType_sample_count(png->colour_type);
   size_t bits_per_pixel = png->bits_per_sample * sample_count;
@@ -599,7 +598,7 @@ void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
     size_t target_pixel_base = pixel_index * TARGET_BYTES_PER_PIXEL;
 
     if (png->colour_type == LisPngColourType_IndexedColour) {
-      ASSERT(png->palette != NULL);
+      LSTD_ASSERT(png->palette != NULL);
       size_t absolute_bit_offset = pixel_index * bits_per_pixel;
       size_t byte_offset = absolute_bit_offset / 8;
       size_t relative_bit_offset = absolute_bit_offset % 8;
@@ -653,7 +652,7 @@ void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
         output_data[target_pixel_base + 3] = 0xFF;
       }
     } else {
-      LPNG_LOG_ERR0("Unsupported colour type");
+      LOG0_ERROR("Unsupported colour type");
       exit(1);
     }
   }
@@ -668,7 +667,7 @@ void LisPng_destroy(LisPng *png) {
   free(png);
 }
 void LisPng_dump_ppm(const LisPng *png) {
-  ASSERT(png != NULL);
+  LSTD_ASSERT(png != NULL);
   printf("P3\n");
   printf("%zu %zu\n", png->width, png->height);
   if (png->colour_type == LisPngColourType_IndexedColour) {
@@ -686,7 +685,7 @@ void LisPng_dump_ppm(const LisPng *png) {
        pixel_index++) {
     size_t pixel_base = pixel_index * bytes_per_pixel;
     if (png->colour_type == LisPngColourType_IndexedColour) {
-      ASSERT(png->palette != NULL);
+      LSTD_ASSERT(png->palette != NULL);
       size_t absolute_bit_offset = pixel_index * bits_per_pixel;
       size_t byte_offset = absolute_bit_offset / 8;
       size_t relative_bit_offset = absolute_bit_offset % 8;
@@ -724,7 +723,7 @@ void LisPng_dump_ppm(const LisPng *png) {
         printf("%u %u %u\n", r, g, b);
       }
     } else {
-      LPNG_LOG_ERR0("Unsupported colour type");
+      LOG0_ERROR("Unsupported colour type");
       exit(1);
     }
   }
