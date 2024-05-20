@@ -52,7 +52,7 @@ void OutputBuffer_init(OutputBuffer *output_buffer) {
   LSTD_ASSERT(output_buffer != NULL);
   output_buffer->buffer = calloc(DEFLATE_OUTPUT_BUFFER_INITIAL_CAPACITY, 1);
   if (!output_buffer->buffer) {
-    LOG0_ERROR("Couldn't allocate deflate output buffer (out of memory?)");
+    LOG_ERROR("Couldn't allocate deflate output buffer (out of memory?)");
     abort();
   }
   output_buffer->cap = DEFLATE_OUTPUT_BUFFER_INITIAL_CAPACITY;
@@ -64,7 +64,7 @@ void OutputBuffer_expand(OutputBuffer *output_buffer) {
   size_t new_cap = output_buffer->cap * 2;
   output_buffer->buffer = realloc(output_buffer->buffer, new_cap);
   if (!output_buffer->buffer) {
-    LOG0_ERROR("Couldn't reallocate deflate output buffer (out of memory?)");
+    LOG_ERROR("Couldn't reallocate deflate output buffer (out of memory?)");
     abort();
   }
 
@@ -192,7 +192,7 @@ bool deflate_decompress_(Bitstream *bitstream,
     symbol = huffman_table_decode(length_literal_table->symbols,
                                   length_literal_table->counts, bitstream);
     if (symbol < 0) {
-      LOG0_ERROR("Unknown symbol decoded");
+      LOG_ERROR("Unknown symbol decoded");
       return false;
     }
     if (symbol < 256) {
@@ -231,16 +231,16 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
 
   uint8_t b_final = 0;
   while (!b_final) {
-    LOG0_DEBUG("Parse deflate block");
+    LOG_DEBUG("Parse deflate block");
     b_final = Bitstream_next_bits(bitstream, BFINAL_LENGTH_BITS);
     LOG_DEBUG("Final block: %d", b_final);
     const uint8_t b_type = Bitstream_next_bits(bitstream, BTYPE_LENGTH_BITS);
     if (b_type == DeflateBlockType_NoCompression) {
-      LOG0_ERROR("Uncompressed deflate blocks aren't supported");
+      LOG_ERROR("Uncompressed deflate blocks aren't supported");
       abort();
     } else {
       if (b_type == DeflateBlockType_FixedHuffman) {
-        LOG0_DEBUG("Static huffman table");
+        LOG_DEBUG("Static huffman table");
         static bool are_tables_blank = true;
         static LengthLiteralTable length_literal_table = {0};
         static DistanceTable distance_table = {0};
@@ -248,7 +248,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
         uint16_t lenlit_codelengths[FIXED_LENGTH_LITERAL_CODE_COUNT];
 
         if (are_tables_blank) {
-          LOG0_DEBUG("Computing static huffman table");
+          LOG_DEBUG("Computing static huffman table");
           for (int symbol = 0; symbol < 144; symbol++) {
             lenlit_codelengths[symbol] = 8;
           }
@@ -303,7 +303,7 @@ bool deflate_decompress(Bitstream *bitstream, OutputBuffer *output) {
           int symbol = huffman_table_decode(codelength_table.symbols,
                                             codelength_table.counts, bitstream);
           if (symbol < 0) {
-            LOG0_ERROR("Unknown symbol decoded using huffman table");
+            LOG_ERROR("Unknown symbol decoded using huffman table");
             return false;
           } else if (symbol < 16) {
             lenlit_dist_codelengths[index++] = symbol;
@@ -374,24 +374,24 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
   uint16_t cmf = bitstream.data[0];
   uint16_t flg = bitstream.data[1];
   if ((cmf * 256 + flg) % 31 != 0) {
-    LOG0_ERROR("fcheck validation failed");
+    LOG_ERROR("fcheck validation failed");
     return false;
   }
 
   if (flevel > 9) {
-    LOG0_ERROR("Invalid compression level");
+    LOG_ERROR("Invalid compression level");
     return NULL;
   }
 
   if (fdict != 0) {
-    LOG0_ERROR("preset dictionnaries are unsupported");
+    LOG_ERROR("preset dictionnaries are unsupported");
     return NULL;
   }
 
   OutputBuffer output;
   OutputBuffer_init(&output);
   if (!deflate_decompress(&bitstream, &output)) {
-    LOG0_ERROR("deflate decompression failed");
+    LOG_ERROR("deflate decompression failed");
     return NULL;
   }
 
@@ -414,7 +414,7 @@ uint8_t *zlib_decompress(const uint8_t *compressed_data_buffer,
   uint32_t computed_adler32 = (b << 16) | a;
   LOG_DEBUG("Computed Adler32 checksum: %u", computed_adler32);
   if (adler32 != computed_adler32) {
-    LOG0_ERROR("Invalid checksum");
+    LOG_ERROR("Invalid checksum");
     exit(1);
   }
 

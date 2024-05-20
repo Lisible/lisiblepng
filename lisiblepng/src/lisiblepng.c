@@ -115,7 +115,7 @@ uint8_t LisPngColourType_sample_count(const LisPngColourType colour_type) {
   case LisPngColourType_TruecolourWithAlpha:
     return 4;
   default:
-    LOG0_ERROR("Unknown colour type");
+    LOG_ERROR("Unknown colour type");
     abort();
   }
 }
@@ -169,7 +169,7 @@ bool ParsingContext_parse_bytes(DeflateDecompressor *ctx, size_t byte_count,
   LSTD_ASSERT(ctx != NULL);
   LSTD_ASSERT(output_buffer != NULL);
   if (fread(output_buffer, 1, byte_count, ctx->stream) < byte_count) {
-    LOG0_ERROR("Couldn't parse bytes, EOF reached");
+    LOG_ERROR("Couldn't parse bytes, EOF reached");
     return false;
   }
 
@@ -252,7 +252,7 @@ bool ParsingContext_validate_crc_if_required(DeflateDecompressor *ctx) {
   uint32_t crc;
   PARSE_FIELD(uint32_t, crc);
   if (computed_crc != crc) {
-    LOG0_ERROR("Invalid CRC checksum");
+    LOG_ERROR("Invalid CRC checksum");
     return false;
   }
 #else
@@ -279,7 +279,7 @@ bool parse_IHDR_chunk(DeflateDecompressor *ctx, ImageHeader *image_header) {
   uint32_t type;
   PARSE_FIELD(uint32_t, type);
   if (type != IHDR_CHUNK_TYPE) {
-    LOG0_ERROR("Expected IHDR chunk");
+    LOG_ERROR("Expected IHDR chunk");
     return false;
   }
 
@@ -485,12 +485,12 @@ LisPng *LisPng_decode(FILE *stream) {
   uint8_t parsed_png_signature[PNG_SIGNATURE_LENGTH];
   if (!ParsingContext_parse_bytes(&ctx, PNG_SIGNATURE_LENGTH,
                                   parsed_png_signature)) {
-    LOG0_ERROR("Couldn't parse signature");
+    LOG_ERROR("Couldn't parse signature");
     goto err;
   }
 
   if (!matches_png_signature(parsed_png_signature)) {
-    LOG0_ERROR("Invalid signature");
+    LOG_ERROR("Invalid signature");
     goto err;
   }
 
@@ -508,14 +508,14 @@ LisPng *LisPng_decode(FILE *stream) {
   while (!end_reached) {
     uint32_t length;
     if (!ParsingContext_parse_uint32_t(&ctx, &length)) {
-      LOG0_ERROR("Couldn't parse chunk length");
+      LOG_ERROR("Couldn't parse chunk length");
       goto cleanup_data;
     }
 
     ParsingContext_crc_reset(&ctx);
     uint32_t type;
     if (!ParsingContext_parse_uint32_t(&ctx, &type)) {
-      LOG0_ERROR("Couldn't parse chunk type");
+      LOG_ERROR("Couldn't parse chunk type");
       goto cleanup_data;
     }
 
@@ -528,7 +528,7 @@ LisPng *LisPng_decode(FILE *stream) {
     switch (type) {
     case IDAT_CHUNK_TYPE:
       if (!parse_IDAT_chunk(&ctx, length, &image_data)) {
-        LOG0_ERROR("Couldn't parse IDAT chunk");
+        LOG_ERROR("Couldn't parse IDAT chunk");
         goto cleanup_data;
       }
       parsed_data_chunk_count++;
@@ -540,19 +540,19 @@ LisPng *LisPng_decode(FILE *stream) {
     case PLTE_CHUNK_TYPE:
       palette = parse_PLTE_chunk(&ctx, length);
       if (!palette) {
-        LOG0_ERROR("Couldn't parse PLTE chunk");
+        LOG_ERROR("Couldn't parse PLTE chunk");
         goto cleanup_data;
       }
       break;
     default:
-      LOG0_DEBUG("Unknown chunk type, skipping chunk...");
+      LOG_DEBUG("Unknown chunk type, skipping chunk...");
       ParsingContext_skip_bytes(&ctx, length + sizeof(uint32_t));
       break;
     }
   }
 
   if (parsed_data_chunk_count == 0) {
-    LOG0_ERROR("No IDAT chunk found, at least one is required");
+    LOG_ERROR("No IDAT chunk found, at least one is required");
     goto cleanup_data;
   }
 
@@ -652,7 +652,7 @@ void LisPng_write_RGBA8_data(const LisPng *png, uint8_t *output_data) {
         output_data[target_pixel_base + 3] = 0xFF;
       }
     } else {
-      LOG0_ERROR("Unsupported colour type");
+      LOG_ERROR("Unsupported colour type");
       exit(1);
     }
   }
@@ -723,7 +723,7 @@ void LisPng_dump_ppm(const LisPng *png) {
         printf("%u %u %u\n", r, g, b);
       }
     } else {
-      LOG0_ERROR("Unsupported colour type");
+      LOG_ERROR("Unsupported colour type");
       exit(1);
     }
   }
