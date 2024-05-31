@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <lisiblepng.h>
+#include <lisiblestd/log.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -7,6 +8,7 @@
 #define LOGN(fmt, ...) fprintf(stderr, fmt "\n", __VA_ARGS__)
 
 int main(int argc, char **argv) {
+  lstd_log_init();
   if (argc != 2) {
     LOG0("Usage: lisiblepng <png filepath>");
     return 1;
