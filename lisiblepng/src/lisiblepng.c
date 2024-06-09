@@ -1,12 +1,8 @@
 #include "lisiblepng.h"
 #include "lisiblepng/deflate.h"
-#include <errno.h>
 #include <lisiblestd/assert.h>
 #include <lisiblestd/log.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <lisiblestd/types.h>
 #include <string.h>
 
 #define PNG_SIGNATURE_LENGTH 8
@@ -120,16 +116,21 @@ uint8_t LisPngColourType_sample_count(const LisPngColourType colour_type) {
   }
 }
 typedef struct {
-  FILE *stream;
+  const u8 *image_data;
+  size_t image_data_size;
+  size_t current_offset;
 #ifdef LPNG_COMPUTE_CRC
   uint32_t computed_crc;
 #endif // LPNG_COMPUTE_CRC
 } DeflateDecompressor;
 
-void DeflateDecompressor_init(DeflateDecompressor *ctx, FILE *stream) {
+void DeflateDecompressor_init(DeflateDecompressor *ctx, const u8 *image_data,
+                              usize image_data_size) {
   LSTD_ASSERT(ctx != NULL);
-  LSTD_ASSERT(stream != NULL);
-  ctx->stream = stream;
+  LSTD_ASSERT(image_data != NULL);
+  ctx->current_offset = 0;
+  ctx->image_data = image_data;
+  ctx->image_data_size = image_data_size;
 #ifdef LPNG_COMPUTE_CRC
   ctx->computed_crc = 0xFFFFFFFFu;
 #endif // LPNG_COMPUTE_CRC
@@ -151,13 +152,19 @@ uint32_t ParsingContext_computed_crc(DeflateDecompressor *ctx) {
 
 long ParsingContext_cursor_position(DeflateDecompressor *ctx) {
   LSTD_ASSERT(ctx != NULL);
-  return ftell(ctx->stream);
+  return ctx->current_offset;
 }
 
 bool ParsingContext_skip_bytes(DeflateDecompressor *ctx, size_t byte_count) {
   LSTD_ASSERT(ctx != NULL);
-  if (fseek(ctx->stream, byte_count, SEEK_CUR) != 0) {
-    LOG_ERROR("Couldn't skip bytes: %s", strerror(errno));
+  const size_t previous_offset = ctx->current_offset;
+  ctx->current_offset += byte_count;
+  if (ctx->current_offset > ctx->image_data_size) {
+    LOG_ERROR("current offset > image data size");
+    return false;
+  }
+  if (ctx->current_offset < previous_offset) {
+    LOG_ERROR("current offset overflowed");
     return false;
   }
 
@@ -168,9 +175,13 @@ bool ParsingContext_parse_bytes(DeflateDecompressor *ctx, size_t byte_count,
                                 uint8_t *output_buffer) {
   LSTD_ASSERT(ctx != NULL);
   LSTD_ASSERT(output_buffer != NULL);
-  if (fread(output_buffer, 1, byte_count, ctx->stream) < byte_count) {
-    LOG_ERROR("Couldn't parse bytes, EOF reached");
-    return false;
+
+  for (size_t i = 0; i < byte_count; i++) {
+    output_buffer[i] = ctx->image_data[ctx->current_offset++];
+    if (ctx->current_offset > ctx->image_data_size) {
+      LOG_ERROR("Couldn't parse bytes, EOF reached");
+      return false;
+    }
   }
 
 #ifdef LPNG_COMPUTE_CRC
@@ -477,11 +488,11 @@ void apply_reconstruction_functions(LisPng *image,
   }
 }
 
-LisPng *LisPng_decode(FILE *stream) {
+LisPng *LisPng_decode(const u8 *image_bytes, usize image_bytes_length) {
   LisPng *png = malloc(sizeof(LisPng));
   DeflateDecompressor ctx;
 
-  DeflateDecompressor_init(&ctx, stream);
+  DeflateDecompressor_init(&ctx, image_bytes, image_bytes_length);
   uint8_t parsed_png_signature[PNG_SIGNATURE_LENGTH];
   if (!ParsingContext_parse_bytes(&ctx, PNG_SIGNATURE_LENGTH,
                                   parsed_png_signature)) {
