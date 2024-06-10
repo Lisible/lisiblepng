@@ -1,7 +1,8 @@
 #ifndef LISIBLE_PNG_H
 #define LISIBLE_PNG_H
 
-#include <lisiblestd/types.h>
+#include <stdint.h>
+#include <stdio.h>
 
 typedef enum {
   LisPngColourType_Greyscale = 0,
@@ -18,12 +19,11 @@ typedef struct LisPng LisPng;
 
 /// Parses the provided PNG stream
 ///
-/// @param image_bytes The image data
-/// @param image_bytes_length The size of the image data
+/// @param stream The PNG stream
 /// @returns The parsed PNG as a Png struct pointer or NULL if an error occured.
 /// The returned PNG is owned by the caller and must be destroyed with
 /// Png_destroy.
-LisPng *LisPng_decode(const u8 *image_bytes, usize image_bytes_length);
+LisPng *LisPng_decode(FILE *stream);
 
 /// Writes the PNG image data as RGBA8 data to a buffer
 ///
